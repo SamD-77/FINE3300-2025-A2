@@ -30,7 +30,7 @@ print(cpi_df.head(12))
 # 3. Report average month-to-month changes in food, shelter, All-items excluding food and energy as % 1 dec for Canada and each province
 avg_change_results = [] # list to hold dicts of month-to-month change results
 
-items = ["Food", "Shelter", "All-items excluding energy"] # items to calculate avg month-to-month change for
+items = ["Food", "Shelter", "All-items excluding food and energy"] # items to calculate avg month-to-month change for
 
 for jurisdiction in jurisdictions: # loop for each item in each jurisdiction
     for item in items:
@@ -55,11 +55,11 @@ print() # new line
 
 # 4. Province with highest average change across the select categories
 for item in items: # for each category
-    item_filter_df = avg_change_results_df.query("Item == @item") # filter dataframe for category
+    item_filter_df = avg_change_results_df.query("Item == @item and Jurisdiction != 'Canada'") # filter dataframe for category and only provinces (exclude Canada)
 
     top_jurisdiction = item_filter_df.sort_values(by="Avg % Change", ascending=False).iloc[0] # sort by Avg % Change column descending so the top row will be the max
 
-    print(f"Highest Average % Change in {item}\nJurisdiction: {top_jurisdiction["Jurisdiction"]}\nAvg % Change: {top_jurisdiction["Avg % Change"]}%\n") # output results    
+    print(f"Highest Average % Change in {item}\nProvince: {top_jurisdiction["Jurisdiction"]}\nAvg % Change: {top_jurisdiction["Avg % Change"]}%\n") # output results    
 
 
 # 5. Equivalent salary to $100k received in Ontario in all other provinces using All-items CPI
@@ -72,7 +72,7 @@ equivalent_salaries = [] # list to hold dict of provinces and their equivalent s
 
 for jurisdiction in jurisdictions[1:]:# loop through jurisdictions but skip Canada at first index
     province_cpi = all_item_cpi_filter.loc[all_item_cpi_filter["Jurisdiction"] == jurisdiction, "CPI"].iloc[0]
-    equivalent_salary =  (province_cpi / ontario_cpi) * salary # equivalent salary calculation
+    equivalent_salary = (province_cpi / ontario_cpi) * salary # equivalent salary calculation
         # formula is equivalent salary = (province CPI / Ontario CPI) * salary in Ontario
      
     equivalent_salaries.append({ # add equivalent salary and jurisdiction to list
