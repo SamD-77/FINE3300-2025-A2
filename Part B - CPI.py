@@ -88,7 +88,6 @@ print(equivalent_salaries_df) # output results
 
 # 6. Minimum wage
 minimum_wage_df = pd.read_csv("A2 Data/MinimumWages.csv") # open minimum wages file and read to data frame
-print(minimum_wage_df)
 
 highest_min_wage = minimum_wage_df.sort_values(by="Minimum Wage", ascending=False).iloc[0] # sort by descending and grab top row which will be the max
 lowest_min_wage = minimum_wage_df.sort_values(by="Minimum Wage", ascending=True).iloc[0] # sort by ascending and grab top row which will be the lowest
@@ -101,15 +100,23 @@ min_wage_merged_df = pd.merge(minimum_wage_df, all_item_cpi_filter, on="Jurisdic
 min_wage_merged_df["Real Minimum Wage"] = round(min_wage_merged_df["Minimum Wage"] / min_wage_merged_df["CPI"] * 100, 2) # calculate real minimum wage column, 2 decimal places
     # formula for real minimum wage is (nominal wage / CPI) * 100
 
-max_real_wage = min_wage_merged_df.sort_values(by="Real Minimum Wage", ascending=False).iloc[0] # sort descding and get first row which will be the max
-print(f"\nHighest minimum wage (real)\nProvince: {max_real_wage["Jurisdiction"]}\nReal Minimum Wage: {max_real_wage["Real Minimum Wage"]}") # print highest real minimum wage
+max_real_wage = min_wage_merged_df.sort_values(by="Real Minimum Wage", ascending=False).iloc[0] # sort descending and get first row which will be the max
+print(f"\nHighest minimum wage (real)\nProvince: {max_real_wage["Jurisdiction"]}\nReal Minimum Wage: {max_real_wage["Real Minimum Wage"]}\n") # print highest real minimum wage
 
 
 # 7. Annual change in CPI for services across all jurisdictions reported as % 1 decimal
-print(cpi_df)
-services_cpi = cpi_df.query("Item == 'Services'")
-print(services_cpi)
+services_cpi = cpi_df.query("Item == 'Services' and Month in ['24-Jan', '24-Dec']").copy() # filter CPI dataframe for services CPI in Jan and Dec and make copy 
+services_cpi = services_cpi.pivot(index="Jurisdiction", columns="Month", values="CPI") # reshape dataframe from starting/ending CPIs stacked to separate columns for Dec and Jan
 
+services_cpi["Annual Change (%)"] = ((services_cpi["24-Dec"] - services_cpi["24-Jan"]) / services_cpi["24-Jan"]) * 100
+    # annual change = [(end value- start value) / start value] * 100
+    # annual change = [(Dec CPI - Jan CPI) / Jan CPI] * 100
+
+services_cpi["Annual Change (%)"] = services_cpi["Annual Change (%)"].round(1) # round annual change values to 1 decimal
+
+print(services_cpi) # output results 
 
 
 # 8. Region experiencing highest inflation in services
+highest_inflation = services_cpi.reset_index().sort_values(by="Annual Change (%)", ascending=False).iloc[0] # reset index and sort by descending and grab top row which will be the max
+print(f"\nRegion with Highest Inflation\nRegion: {highest_inflation["Jurisdiction"]}\nAnnual Change: {highest_inflation["Annual Change (%)"]}%") # output highest nominal minimum wage
