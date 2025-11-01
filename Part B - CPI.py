@@ -34,7 +34,7 @@ items = ["Food", "Shelter", "All-items excluding energy"] # items to calculate a
 
 for jurisdiction in jurisdictions: # loop for each item in each jurisdiction
     for item in items:
-        filtered_df = cpi_df.query("Jurisdiction == @jurisdiction and Item == @item").copy() # filter cpi dataframe by jurisdiction and item and make a copy 
+        filtered_df = cpi_df.query("Jurisdiction == @jurisdiction and Item == @item").copy() # filter cpi dataframe by jurisdiction and item and make a copy so changes can be made
             # query allows sql style filtering which makes it easy to read (@ neeeded to pass variables)
 
         filtered_df["% Change"] = filtered_df["CPI"].pct_change() # create new column for fractional change between CPI values for each row (displayed as decimal e.g 2% shown as 0.02)
@@ -55,7 +55,7 @@ print() # new line
 
 # 4. Province with highest average change across the select categories
 for item in items: # for each category
-    item_filter_df = avg_change_results_df.query("Item == @item").copy() # filter dataframe for category and make copy
+    item_filter_df = avg_change_results_df.query("Item == @item") # filter dataframe for category
 
     top_jurisdiction = item_filter_df.sort_values(by="Avg % Change", ascending=False).iloc[0] # sort by Avg % Change column descending so the top row will be the max
 
@@ -73,6 +73,7 @@ equivalent_salaries = [] # list to hold dict of provinces and their equivalent s
 for jurisdiction in jurisdictions[1:]:# loop through jurisdictions but skip Canada at first index
     province_cpi = all_item_cpi_filter.loc[all_item_cpi_filter["Jurisdiction"] == jurisdiction, "CPI"].iloc[0]
     equivalent_salary =  (province_cpi / ontario_cpi) * salary # equivalent salary calculation
+        # formula is equivalent salary = (province CPI / Ontario CPI) * salary in Ontario
      
     equivalent_salaries.append({ # add equivalent salary and jurisdiction to list
         "Jurisdiction": jurisdiction,
@@ -95,23 +96,20 @@ lowest_min_wage = minimum_wage_df.sort_values(by="Minimum Wage", ascending=True)
 print(f"\nHighest minimum wage (nominal)\nProvince: {highest_min_wage["Province"]}\nMinimum wage: {highest_min_wage["Minimum Wage"]}") # output highest nominal minimum wage
 print(f"\nLowest minimum wage (nominal)\nProvince: {lowest_min_wage["Province"]}\nMinimum wage: {lowest_min_wage["Minimum Wage"]}") # output lowest nominal minimum wage
 
+minimum_wage_df.rename(columns={"Province": "Jurisdiction"}, inplace=True) # rename minimum wage dataframe column from Province to Jurisdiction to match with CPI dataframe so can merge
+min_wage_merged_df = pd.merge(minimum_wage_df, all_item_cpi_filter, on="Jurisdiction", how="inner") # merge all-items Dec 2024 CPI dataframe with minimum wage data frame
+min_wage_merged_df["Real Minimum Wage"] = round(min_wage_merged_df["Minimum Wage"] / min_wage_merged_df["CPI"] * 100, 2) # calculate real minimum wage column, 2 decimal places
+    # formula for real minimum wage is (nominal wage / CPI) * 100
 
-"""
-Finish below: finding max real minimum wage
-    - Make new col for real min wage using Dec 2024 CPI for and nominal min wage values for respective province
-    - Then find max after
-"""
-#print(all_item_cpi_filter)
-#minimum_wage_df["Dec 24 CPI"] = all_item_cpi_filter.loc[all_item_cpi_filter["Jurisdiction"] == "Province", "CPI"].iloc[0]
-
-#max_real_wage = all_item_cpi_filter.sort_values(by="CPI", ascending=False).iloc[0] # get first row which will be the max from descending list of all-items CPI for Dec 2024
-#print(f"\nHighest minimum wage (real)\nProvince: {max_real_wage["Province"]}\nCPI: {max_real_wage["CPI"]}") # print highest real minimum wage
+max_real_wage = min_wage_merged_df.sort_values(by="Real Minimum Wage", ascending=False).iloc[0] # sort descding and get first row which will be the max
+print(f"\nHighest minimum wage (real)\nProvince: {max_real_wage["Jurisdiction"]}\nReal Minimum Wage: {max_real_wage["Real Minimum Wage"]}") # print highest real minimum wage
 
 
 # 7. Annual change in CPI for services across all jurisdictions reported as % 1 decimal
 print(cpi_df)
 services_cpi = cpi_df.query("Item == 'Services'")
 print(services_cpi)
+
 
 
 # 8. Region experiencing highest inflation in services
