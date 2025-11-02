@@ -1,5 +1,6 @@
 # FINE 3300 Assignment 2 
 #--------------------- Part A ---------------------
+import pandas as pd
 import matplotlib.pyplot as plt
 
 class MortgagePayment():
@@ -12,7 +13,7 @@ class MortgagePayment():
         """
         Function to calculate the Present Value of Annuity Factor
         """
-        pva = (1 - (1 + periodic_rate)**-num_payments) / periodic_rate
+        pva = (1 - (1 + periodic_rate) ** -num_payments) / periodic_rate
         return pva
 
     def payments(self, principal):
@@ -43,21 +44,22 @@ class MortgagePayment():
         monthly_pmt = payment_amounts[0] # monthly payment amount is first index
         rapid_bi_pmt = monthly_pmt / 2 # calculate accelerated bi-weekly payment amount from monthly amount
         rapid_weekly_pmt = monthly_pmt / 4 # calculate accelerated weekly payment amount from monthly amount
-        payment_amounts.append(rapid_bi_pmt)
-        payment_amounts.append(rapid_weekly_pmt)
+        payment_amounts.append(rapid_bi_pmt) # add rapid bi-weekly payment amount to list
+        payment_amounts.append(rapid_weekly_pmt) # add rapid weekly payment amount to list
 
         # Return all payment options as tuple
         return tuple(payment_amounts)
     
+
     def generate_schedule(self):
         """
         Uses a data frame to build out a payment schedule.
         Includes the period, starting balance, interest amount, payment, and ending balance.
         """
         pass
+
+
     
-
-
 # Prompt user to collect relevant data and convert data type from str
 principal_amount = float(input("Enter the principal ($): "))
 interest_rate = float(input("Enter the quoted interest rate % (e.g 4.85): ")) / 100 # convert from percentage to decimal
@@ -79,7 +81,10 @@ for i in range(len(payment_amounts)):
     print(f"{labels[i]} Payment: ${payment_amounts[i]:.2f}") # print each label and corresponding value rounded 2 decimals
 
 
-# Create size data frames for six payment options
+
+
+# Create six data frames for six payment options
+
 
 # Save each data frame into single Excel file with multiple worksheets labelled appropriately
 
