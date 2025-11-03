@@ -8,13 +8,16 @@ class MortgagePayment():
         self.quoted_rate = quoted_rate
         self.amortization_period = amortization_period
         self.term = term
+        self.ear = (1 + quoted_rate / 2)**2 - 1 # convert semi annual quoted rate to effective annual rate (EAR)
+            # EAR = (1 + (i / n))^n - 1 where i is the nominal interest rate and n is number of compounding periods per year
+            # use n = 2 because semi-annual compounding for quoted mortgage rates in Canada
 
     def pva_factor(self, periodic_rate, num_payments):
         """
         Function to calculate the Present Value of Annuity Factor
         """
-        pva = (1 - (1 + periodic_rate) ** -num_payments) / periodic_rate
-        return pva
+        return (1 - (1 + periodic_rate) ** -num_payments) / periodic_rate
+    
 
     def payments(self, principal):
         """
@@ -28,14 +31,11 @@ class MortgagePayment():
             "weekly": 52
         }
 
-        # Convert semi annual quoted rate to effective annual rate (EAR)
-        ear = (1 + self.quoted_rate / 2)**2 - 1
-
         payment_amounts = [] # list holding calculated payment option amounts
     
         # Loop through payment frequencies dict for each option
         for freq in pmt_frequencies.values():
-            periodic_rate = (1 + ear) ** (1 / freq) - 1 # calculate rate for the period with EAR and yearly payment frequency 
+            periodic_rate = (1 + self.ear) ** (1 / freq) - 1 # calculate rate for the period with EAR and yearly payment frequency 
             num_pmts = freq * self.amortization_period # calculate number of payments across the amortization period
             payment_amount = principal / self.pva_factor(periodic_rate, num_pmts) # calculate the payment amount
             payment_amounts.append(payment_amount) # add to list of payment amounts
@@ -51,15 +51,52 @@ class MortgagePayment():
         return tuple(payment_amounts)
     
 
-    def generate_schedule(self):
+    def generate_schedule(self, principal, payment_frequency, payment_amount):
         """
         Uses a data frame to build out a payment schedule.
         Includes the period, starting balance, interest amount, payment, and ending balance.
         """
-        pass
+        frequencies = {
+            "Monthly": 12,
+            "Semi-monthly": 24,
+            "Bi-weekly": 26,
+            "Weekly": 52,
+            "Rapid Bi-weekly": 26,
+            "Rapid Weekly": 52
+        }
+
+        periods_per_year = frequencies[payment_frequency] # number of pay periods per year
+
+        periodic_rate = (1 + self.ear) ** (1 / periods_per_year) - 1 # calculate rate for the period with EAR and yearly payment frequency
+
+        num_periods = periods_per_year * self.amortization_period # number of payment periods
+
+        balance = principal # set balance as principal to start
+        schedule = [] # list to hold dicts to make up payment schedule
+
+        # Iteratively record values for each period
+        for period in range(1, num_periods + 1): # start at period 1
+            interest = balance * periodic_rate
+            principal_payment = payment_amount - interest
+            ending_balance = balance - principal_payment
+
+            # Add to schedule list
+            schedule.append({
+                "Period": period,
+                "Starting Balance": balance,
+                "Interest": interest,
+                "Payment": payment_amount,
+                "Ending Balance": ending_balance
+            })
+            balance = ending_balance # set new starting balance as last ending balance
+
+        schedule_df = pd.DataFrame(schedule) # covert list of dicts to data frame for payment schedule
+
+        # Round each value 2 decimals and return data frame
+        schedule_df[["Starting Balance", "Interest", "Payment", "Ending Balance"]] = (schedule_df[["Starting Balance", "Interest", "Payment", "Ending Balance"]].round(2)) 
+        return schedule_df
 
 
-    
 # Prompt user to collect relevant data and convert data type from str
 principal_amount = float(input("Enter the principal ($): "))
 interest_rate = float(input("Enter the quoted interest rate % (e.g 4.85): ")) / 100 # convert from percentage to decimal
@@ -81,12 +118,17 @@ for i in range(len(payment_amounts)):
     print(f"{labels[i]} Payment: ${payment_amounts[i]:.2f}") # print each label and corresponding value rounded 2 decimals
 
 
-
-
 # Create six data frames for six payment options
+payment_schedules = [] # list to hold the six payment schedules for the different payment options
+for i in range(len(labels)): # loop through each payment option label
+    payment_schedule = {labels[i]: mortgage.generate_schedule(principal_amount, labels[i], payment_amounts[i])} # create dict for label and corresponding payment schedule data frame
+    payment_schedules.append(payment_schedule) # add payment schedule dict to list of payment schedules
 
 
 # Save each data frame into single Excel file with multiple worksheets labelled appropriately
+with pd.ExcelWriter("mortgage_schedules.xlsx", engine="openpyxl") as writer:
+    for i in range(len(payment_schedules)): # loop through each payment schedule
+        payment_schedules[i][labels[i]].to_excel(writer, sheet_name=labels[i], index=False) # write dataframe to excel and name sheet with corresponding label
 
 
 # Generate single graph with Matplotlib depicting loan balance decline (all 6 plots with legends)
