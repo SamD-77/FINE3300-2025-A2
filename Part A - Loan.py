@@ -78,7 +78,14 @@ class MortgagePayment():
         for period in range(1, num_periods + 1): # start at period 1
             interest = balance * periodic_rate
             principal_payment = payment_amount - interest
-            ending_balance = balance - principal_payment
+            
+            # Final payment adjustment to prevent negative balance
+            if principal_payment > balance: # check if principal payment would overpay
+                principal_payment = balance # cap it
+                payment_amount = interest + principal_payment # adjust total payment
+                ending_balance = 0 # mortgage is paid off
+            else:
+                ending_balance = balance - principal_payment
 
             # Add to schedule list
             schedule.append({
@@ -88,7 +95,11 @@ class MortgagePayment():
                 "Payment": payment_amount,
                 "Ending Balance": ending_balance
             })
+
             balance = ending_balance # set new starting balance as last ending balance
+
+            if balance <= 0: # stop early if mortgage is paid off
+                break
 
         schedule_df = pd.DataFrame(schedule) # covert list of dicts to data frame for payment schedule
 
@@ -109,7 +120,7 @@ mortgage = MortgagePayment(interest_rate, amortization_period, term)
 # Format and display output
 payment_amounts = mortgage.payments(principal_amount) # tuple of payment options amounts
 
-labels = ["Monthly", "Semi-monthly", "Bi-weekly", "Weekly", "Rapid Bi-weekly", "Rapid Weekly"]
+labels = ["Monthly", "Semi-monthly", "Bi-weekly", "Weekly", "Rapid Bi-weekly", "Rapid Weekly"] # list of payment options labels
 
 print("-" * 25) # line break
 
@@ -119,19 +130,32 @@ for i in range(len(payment_amounts)):
 
 
 # Create six data frames for six payment options
-payment_schedules = [] # list to hold the six payment schedules for the different payment options
+payment_schedules = dict() # dict to hold the six payment schedules for the different payment options
 for i in range(len(labels)): # loop through each payment option label
-    payment_schedule = {labels[i]: mortgage.generate_schedule(principal_amount, labels[i], payment_amounts[i])} # create dict for label and corresponding payment schedule data frame
-    payment_schedules.append(payment_schedule) # add payment schedule dict to list of payment schedules
+    payment_schedules[labels[i]] = mortgage.generate_schedule(principal_amount, labels[i], payment_amounts[i]) # add label and corresponding data frame to dict
 
 
 # Save each data frame into single Excel file with multiple worksheets labelled appropriately
 with pd.ExcelWriter("mortgage_schedules.xlsx", engine="openpyxl") as writer:
-    for i in range(len(payment_schedules)): # loop through each payment schedule
-        payment_schedules[i][labels[i]].to_excel(writer, sheet_name=labels[i], index=False) # write dataframe to excel and name sheet with corresponding label
+    for label, df in payment_schedules.items(): # loop through each payment schedule
+        df.to_excel(writer, sheet_name=label, index=False) # write dataframe to excel and name sheet with corresponding label
 
 
 # Generate single graph with Matplotlib depicting loan balance decline (all 6 plots with legends)
+plt.figure(figsize=(12, 6))
 
+for label, df in payment_schedules.items(): # loop through dict of payment schedules
+    plt.plot(df["Period"], df["Ending Balance"], label=label) # plot period and ending balance from data frame
+
+plt.title("Mortgage Balance Over Time by Payment Frequency")
+plt.xlabel("Period")
+plt.ylabel("Ending Balance ($)")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
 
 # Save graph as a PNG file
+plt.savefig("mortgage_balance_plot.png", dpi=300)
+
+plt.show() # display graph
+
