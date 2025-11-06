@@ -4,10 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 class MortgagePayment():
-    def __init__(self, quoted_rate, amortization_period, term):
+    def __init__(self, quoted_rate, amortization_period):
         self.quoted_rate = quoted_rate
         self.amortization_period = amortization_period
-        self.term = term
         self.ear = (1 + quoted_rate / 2)**2 - 1 # convert semi annual quoted rate to effective annual rate (EAR)
             # EAR = (1 + (i / n))^n - 1 where i is the nominal interest rate and n is number of compounding periods per year
             # use n = 2 because semi-annual compounding for quoted mortgage rates in Canada
@@ -51,7 +50,7 @@ class MortgagePayment():
         return tuple(payment_amounts)
     
 
-    def generate_schedule(self, principal, payment_frequency, payment_amount):
+    def generate_schedule(self, principal, payment_frequency, payment_amount, term_years):
         """
         Uses a data frame to build out a payment schedule.
         Includes the period, starting balance, interest amount, payment, and ending balance.
@@ -72,7 +71,7 @@ class MortgagePayment():
         num_periods = periods_per_year * self.amortization_period # number of payment periods
 
         balance = principal # set balance as principal to start
-        schedule = [] # list to hold dicts to make up payment schedule
+        schedule = [] # list to hold dicts to make up full payment schedule
 
         # Iteratively record values for each period
         for period in range(1, num_periods + 1): # start at period 1
@@ -105,7 +104,12 @@ class MortgagePayment():
 
         # Round each value 2 decimals and return data frame
         schedule_df[["Starting Balance", "Interest", "Payment", "Ending Balance"]] = (schedule_df[["Starting Balance", "Interest", "Payment", "Ending Balance"]].round(2)) 
-        return schedule_df
+        
+        # Only return schedule for term
+        term_periods = frequencies[payment_frequency] * term_years
+        term_df = schedule_df[schedule_df["Period"] <= term_periods]
+
+        return term_df
 
 
 # Prompt user to collect relevant data and convert data type from str
@@ -115,7 +119,7 @@ amortization_period = int(input("Enter the amortization period in years: "))
 term = int(input("Enter the mortgage term: "))
 
 # Instantiate object of MortgagePayment
-mortgage = MortgagePayment(interest_rate, amortization_period, term)
+mortgage = MortgagePayment(interest_rate, amortization_period)
 
 # Format and display output
 payment_amounts = mortgage.payments(principal_amount) # tuple of payment options amounts
@@ -132,7 +136,7 @@ for i in range(len(payment_amounts)):
 # Create six data frames for six payment options
 payment_schedules = dict() # dict to hold the six payment schedules for the different payment options
 for i in range(len(labels)): # loop through each payment option label
-    payment_schedules[labels[i]] = mortgage.generate_schedule(principal_amount, labels[i], payment_amounts[i]) # add label and corresponding data frame to dict
+    payment_schedules[labels[i]] = mortgage.generate_schedule(principal_amount, labels[i], payment_amounts[i], term) # add label and corresponding data frame to dict
 
 
 # Save each data frame into single Excel file with multiple worksheets labelled appropriately
@@ -147,7 +151,7 @@ plt.figure(figsize=(12, 6))
 for label, df in payment_schedules.items(): # loop through dict of payment schedules
     plt.plot(df["Period"], df["Ending Balance"], label=label) # plot period and ending balance from data frame
 
-plt.title("Mortgage Balance Over Time by Payment Frequency")
+plt.title(f"Mortgage Balance Over Time by Payment Frequency (Term = {term})")
 plt.xlabel("Period")
 plt.ylabel("Ending Balance ($)")
 plt.legend()
